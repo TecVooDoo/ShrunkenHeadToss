@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 3e479dab156c11e4a82843ba47d0ab58
+TextScriptImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 337806
+  packageName: Toolkit for Ballistics 2026
+  packageVersion: 5.0.0
+  assetPath: Packages/com.heathen.ballistics/Documentation.md
+  uploadId: 802752

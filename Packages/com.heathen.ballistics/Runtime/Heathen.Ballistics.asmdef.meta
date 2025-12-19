@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: e540f1e48615c0b4298d7014a8976d39
+AssemblyDefinitionImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 337806
+  packageName: Toolkit for Ballistics 2026
+  packageVersion: 5.0.0
+  assetPath: Packages/com.heathen.ballistics/Runtime/Heathen.Ballistics.asmdef
+  uploadId: 802752
