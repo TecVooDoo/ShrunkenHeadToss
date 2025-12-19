@@ -1,6 +1,6 @@
 # Shrunken Head Toss - Design Decisions and Lessons Learned
 
-**Version:** 1.0
+**Version:** 2
 **Date Created:** December 19, 2025
 **Last Updated:** December 19, 2025
 **Developer:** TecVooDoo LLC
