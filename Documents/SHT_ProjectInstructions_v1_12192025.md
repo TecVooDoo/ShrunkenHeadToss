@@ -137,9 +137,14 @@ Examples:
 
 ### Required Frameworks
 
-- **Odin Inspector** - For data structures and Inspector UI
-- **DOTween Pro** - For animations and juice
-- **New Input System** - Use `Keyboard.current`, `Mouse.current`, `Touchscreen.current`
+- **Odin Inspector** (4.0.1.2) - For data structures and Inspector UI
+- **Odin Validator** (4.0.1.2) - For asset validation
+- **DOTween Pro** (1.0.386) - For animations and juice
+- **Feel** (5.9.1) - For MMFeedbacks, impacts, screen shake
+- **UniTask** (2.5.10) - For async/await patterns
+- **Init(args)** (1.5.5) - For dependency injection
+- **Toolkit for Ballistics 2026** (5.0.0) - For trajectory/arc physics
+- **New Input System** (1.16.0) - Use `Keyboard.current`, `Mouse.current`, `Touchscreen.current`
 
 ### Architecture Patterns
 

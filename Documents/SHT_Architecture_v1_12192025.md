@@ -1,10 +1,50 @@
 # Shrunken Head Toss - Architecture Document
 
-**Version:** 1.0
+**Version:** 1.1
 **Date Created:** December 19, 2025
 **Last Updated:** December 19, 2025
 **Developer:** TecVooDoo LLC
+**Unity Version:** 6.3 (6000.3.0f1)
 **Total Scripts:** TBD (project not yet started)
+
+---
+
+## Installed Packages
+
+### Asset Store Packages
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| DOTween Pro | 1.0.386 | Animation, tweening, juice effects |
+| Feel | 5.9.1 | MMFeedbacks for impacts, screen shake, game feel |
+| Init(args) | 1.5.5 | Dependency injection, service initialization |
+| Odin Inspector and Serializer | 4.0.1.2 | Enhanced inspector, serialization |
+| Odin Validator | 4.0.1.2 | Asset validation, error checking |
+| Toolkit for Ballistics 2026 | 5.0.0 | Trajectory calculation, arc physics |
+
+### Third-Party Packages (Local/Custom)
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| MCP for Unity | 8.2.3 | Claude Code integration |
+| UniTask | 2.5.10 | Async/await, cancellation tokens |
+
+### Key Unity Packages
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| 2D Animation | 13.0.2 | Sprite animation |
+| 2D Aseprite Importer | 3.0.1 | Aseprite file support |
+| 2D Sprite | 1.0.0 | Sprite rendering |
+| 2D SpriteShape | 13.0.0 | Shape-based sprites |
+| 2D Tilemap Editor | 1.0.0 | Tilemap tools |
+| 2D Tilemap Extras | 6.0.1 | Additional tilemap features |
+| Cinemachine | 3.1.5 | Camera control, zoom, follow |
+| Input System | 1.16.0 | New input handling |
+| TextMesh Pro | (included) | UI text rendering |
+| Universal Render Pipeline | 17.3.0 | 2D URP rendering |
+| Burst | 1.8.25 | Performance compilation |
+| Mathematics | 1.3.3 | Math utilities |
 
 ---
 
