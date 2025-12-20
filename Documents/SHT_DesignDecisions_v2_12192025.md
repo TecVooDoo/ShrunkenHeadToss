@@ -236,8 +236,8 @@ These decisions are pending and will be resolved during development:
 
 | Question | Options | Decision |
 |----------|---------|----------|
-| Trajectory preview line? | Show arc / Don't show | TBD |
-| Wind mechanic? | Add wind / Keep simple | TBD |
+| Trajectory preview line? | Show arc / Don't show | IMPLEMENTED - show arc (full arc for testing, shorten to ~50% for release) |
+| Wind mechanic? | None to hurricane force based on difficulty | PLANNED - post-MVP |
 | Head abilities? | Different weights/bounces / All same | TBD |
 | Tie breaker | Sudden death / Replay round | TBD |
 | Max custom heads | 10 / 20 / Unlimited | TBD |
@@ -246,7 +246,10 @@ These decisions are pending and will be resolved during development:
 
 ## Bug Fix History
 
-*No bugs yet - project not started*
+| Date | Issue | Fix |
+|------|-------|-----|
+| Dec 19, 2025 | Head scored then rolled off, registering as miss | Check `_hasScored` flag before treating ground collision as miss |
+| Dec 19, 2025 | Turn doesn't switch if head rolls off ground edge | PENDING - Add timeout (e.g. 5 sec max) after toss to force turn end regardless of landing |
 
 ---
 
@@ -257,6 +260,39 @@ These decisions are pending and will be resolved during development:
 ---
 
 ## Future Considerations
+
+### Game Expansion: "Head Games" (Post-MVP)
+
+**Concept:** Rename from "Shrunken Head Toss" to "Head Games" - a collection of macabre lawn games.
+
+**Planned Game Modes:**
+1. **Shrunken Head Toss** - Cornhole-style (current core game)
+2. **Bocce Ball** - Traditional bocce with shrunken heads
+3. **Lawn Darts** - Head becomes the target (or accidentally hits other player)
+4. **KanJam variant** - TBD mechanics
+
+**Note:** These are documented for future reference. One game at a time - no scope creep.
+
+### Wind Mechanic (Post-MVP)
+
+**Concept:** Variable wind affecting trajectory, scaled by difficulty.
+- Easy: No wind
+- Medium: Light breeze
+- Hard: Strong gusts
+- Nightmare: Hurricane force
+
+### Background Vignettes
+
+**Concept:** Keep middle screen clear for background "flavor" animations.
+- Norman Rockwell scenes with macabre twists
+- Examples:
+  - Dad at BBQ grill with human leg/foot
+  - Mom chasing dog carrying an arm/hand
+  - Kids playing with suspicious looking ball
+- Non-interactive, purely atmospheric
+- Reinforces "Americana meets 80s gore" aesthetic
+
+**Implementation:** Parallax background layer, subtle animations, no gameplay impact.
 
 ### Potential Features (Post-Launch)
 

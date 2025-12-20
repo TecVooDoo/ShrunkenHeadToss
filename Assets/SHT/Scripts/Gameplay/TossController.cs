@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 using Sirenix.OdinInspector;
-using Heathen.UnityPhysics.API;
+using SHT.Core;
 
 namespace SHT.Gameplay
 {
@@ -52,6 +52,7 @@ namespace SHT.Gameplay
 
         // Events
         public event Action OnTossStarted;
+        public event Action<HeadController> OnHeadLaunched;
         public event Action<Vector2> OnTossReleased;
         public event Action OnTossCancelled;
 
@@ -253,6 +254,13 @@ namespace SHT.Gameplay
             if (headController != null)
             {
                 headController.Launch(velocity);
+
+                // Notify GameManager
+                OnHeadLaunched?.Invoke(headController);
+                if (GameManager.Instance != null)
+                {
+                    GameManager.Instance.OnHeadLaunched(headController);
+                }
             }
             else
             {
@@ -264,6 +272,9 @@ namespace SHT.Gameplay
             }
 
             OnTossReleased?.Invoke(velocity);
+
+            // Disable input after toss - GameManager will re-enable on next turn
+            DisableInput();
         }
 
         private void CancelAiming()
