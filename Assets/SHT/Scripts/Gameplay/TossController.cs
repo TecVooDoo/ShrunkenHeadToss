@@ -40,6 +40,10 @@ namespace SHT.Gameplay
         [SerializeField, MinValue(1f)]
         private float _trajectoryMaxDistance = 20f;
 
+        [Title("Player")]
+        [SerializeField, Tooltip("Which player owns this controller (0 = Player 1, 1 = Player 2)")]
+        private int _playerIndex = 0;
+
         [Title("Debug")]
         [SerializeField, ReadOnly]
         private bool _isAiming;
@@ -253,7 +257,7 @@ namespace SHT.Gameplay
             var headController = headObj.GetComponent<HeadController>();
             if (headController != null)
             {
-                headController.Launch(velocity);
+                headController.Launch(velocity, _playerIndex);
 
                 // Notify GameManager
                 OnHeadLaunched?.Invoke(headController);

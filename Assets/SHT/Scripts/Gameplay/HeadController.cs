@@ -6,28 +6,30 @@ namespace SHT.Gameplay
 {
     /// <summary>
     /// Controls individual shrunken head behavior after launch.
+    ///
+    /// Scoring Rules:
+    /// - Hit correct target FIRST = score points, head sticks (impaled)
+    /// - Hit anything else first (wrong target, ground, bounds) = no points, turn ends immediately
+    /// - Once scored, points are locked in
     /// </summary>
     [RequireComponent(typeof(Rigidbody2D))]
     [RequireComponent(typeof(Collider2D))]
-    public class HeadController : MonoBehaviour 
+    public class HeadController : MonoBehaviour
     {
         public enum HeadState
         {
             Idle,
             Flying,
-            Landed,
-            Stacked
+            Landed,     // Scored and impaled on target
+            Missed      // Hit something other than target first
         }
 
         [Title("Settings")]
         [SerializeField]
         private float _rotationSpeed = 360f;
 
-        [SerializeField]
-        private float _settleVelocityThreshold = 0.1f;
-
-        [SerializeField]
-        private float _settleTimeRequired = 0.5f;
+        [SerializeField, Tooltip("How far down the spike the head settles when impaled")]
+        private float _impaleDepth = 0.3f;
 
         [Title("Debug")]
         [SerializeField, ReadOnly]
@@ -36,16 +38,21 @@ namespace SHT.Gameplay
         [SerializeField, ReadOnly]
         private int _landedZonePoints;
 
+        [SerializeField, ReadOnly]
+        private bool _turnEnded;
+
         // Events
         public event Action<HeadController> OnHeadLanded;
         public event Action<HeadController, int> OnHeadScored;
 
         public HeadState CurrentState => _currentState;
         public int LandedZonePoints => _landedZonePoints;
+        public int OwnerPlayerIndex => _ownerPlayerIndex;
+        public SpikeZone.TargetSide? ImpaledOnSide => _impaledOnSide;
 
         private Rigidbody2D _rb;
-        private float _settleTimer;
-        private bool _hasScored;
+        private int _ownerPlayerIndex = -1;
+        private SpikeZone.TargetSide? _impaledOnSide = null;
 
         private void Awake()
         {
@@ -55,12 +62,15 @@ namespace SHT.Gameplay
         /// <summary>
         /// Launch the head with the given velocity.
         /// </summary>
-        public void Launch(Vector2 velocity)
+        /// <param name="velocity">Initial velocity</param>
+        /// <param name="playerIndex">Index of the player who threw this head (0 or 1)</param>
+        public void Launch(Vector2 velocity, int playerIndex = -1)
         {
             _currentState = HeadState.Flying;
             _rb.linearVelocity = velocity;
-            _hasScored = false;
-            _settleTimer = 0f;
+            _landedZonePoints = 0;
+            _turnEnded = false;
+            _ownerPlayerIndex = playerIndex;
         }
 
         private void Update()
@@ -73,103 +83,148 @@ namespace SHT.Gameplay
             }
         }
 
-        private void FixedUpdate()
-        {
-            if (_currentState == HeadState.Flying)
-            {
-                CheckForSettled();
-            }
-        }
-
-        private void CheckForSettled()
-        {
-            if (_rb.linearVelocity.magnitude < _settleVelocityThreshold)
-            {
-                _settleTimer += Time.fixedDeltaTime;
-
-                if (_settleTimer >= _settleTimeRequired)
-                {
-                    SetLanded();
-                }
-            }
-            else
-            {
-                _settleTimer = 0f;
-            }
-        }
-
-        private void SetLanded()
-        {
-            _currentState = HeadState.Landed;
-            _rb.linearVelocity = Vector2.zero;
-            _rb.angularVelocity = 0f;
-
-            OnHeadLanded?.Invoke(this);
-        }
-
         private void OnCollisionEnter2D(Collision2D collision)
         {
-            Debug.Log($"Head collision with: {collision.gameObject.name} (Layer: {LayerMask.LayerToName(collision.gameObject.layer)}) - State: {_currentState}, HasScored: {_hasScored}");
-
+            // Only process first collision while flying
             if (_currentState != HeadState.Flying)
                 return;
 
-            // Check if landed on spikes
+            string layerName = LayerMask.LayerToName(collision.gameObject.layer);
+            Debug.Log($"Head collision with: {collision.gameObject.name} (Layer: {layerName})");
+
+            // Check if hit spikes (potential target)
             if (collision.gameObject.layer == LayerMask.NameToLayer("Spikes"))
             {
-                Debug.Log("Hit spikes!");
                 HandleSpikeCollision(collision);
             }
-            // Check if landed on another head
-            else if (collision.gameObject.TryGetComponent<HeadController>(out var otherHead))
+            // Check if hit another head
+            else if (collision.gameObject.layer == LayerMask.NameToLayer("Heads"))
             {
-                Debug.Log("Hit another head!");
-                HandleHeadStackCollision(otherHead);
+                HandleHeadCollision(collision);
             }
-            // Check if hit ground (miss) - only count as miss if we haven't already scored
-            else if (collision.gameObject.layer == LayerMask.NameToLayer("Ground") && !_hasScored)
+            // Hit anything else = miss, turn ends immediately
+            else
             {
-                Debug.Log("Hit ground - miss!");
-                HandleGroundCollision();
+                Debug.Log($"MISS! Hit {layerName} before target.");
+                EndTurnAsMiss();
             }
-            else if (collision.gameObject.layer == LayerMask.NameToLayer("Ground") && _hasScored)
+        }
+
+        private void OnTriggerEnter2D(Collider2D other)
+        {
+            // Only process while flying
+            if (_currentState != HeadState.Flying)
+                return;
+
+            // Out of bounds = miss
+            if (other.gameObject.layer == LayerMask.NameToLayer("Bounds"))
             {
-                Debug.Log("Hit ground after scoring - points retained!");
+                Debug.Log("MISS! Head went OUT OF BOUNDS!");
+                EndTurnAsMiss();
             }
         }
 
         private void HandleSpikeCollision(Collision2D collision)
         {
-            // Get zone points from the spike zone if available
             var spikeZone = collision.gameObject.GetComponent<SpikeZone>();
-            if (spikeZone != null && !_hasScored)
-            {
-                _landedZonePoints = spikeZone.PointValue;
-                _hasScored = true;
-                Debug.Log($"SCORED! {_landedZonePoints} points on {spikeZone.Type} zone");
-                OnHeadScored?.Invoke(this, _landedZonePoints);
-            }
-            else if (spikeZone == null)
+
+            if (spikeZone == null)
             {
                 Debug.LogWarning("Hit Spikes layer but no SpikeZone component found!");
+                EndTurnAsMiss();
+                return;
             }
-        }
 
-        private void HandleHeadStackCollision(HeadController otherHead)
-        {
-            // Only stack if the other head has already landed
-            if (otherHead.CurrentState == HeadState.Landed ||
-                otherHead.CurrentState == HeadState.Stacked)
+            // Check if this is the correct target for this player
+            if (_ownerPlayerIndex >= 0 && !spikeZone.IsValidTargetForPlayer(_ownerPlayerIndex))
             {
-                _currentState = HeadState.Stacked;
-                // Stacking bonus handled by ScoreManager listening to events
+                Debug.Log($"MISS! Player {_ownerPlayerIndex + 1} hit WRONG target ({spikeZone.Side} zone).");
+                EndTurnAsMiss();
+                return;
             }
+
+            // SCORED! Head impales on target
+            ScoreAndImpale(spikeZone.PointValue, spikeZone.Side, spikeZone.Type.ToString());
         }
 
-        private void HandleGroundCollision()
+        private void HandleHeadCollision(Collision2D collision)
         {
-            // Missed the target - no points
+            var otherHead = collision.gameObject.GetComponent<HeadController>();
+
+            if (otherHead == null)
+            {
+                Debug.Log("MISS! Hit object on Heads layer but no HeadController found.");
+                EndTurnAsMiss();
+                return;
+            }
+
+            // Check if the other head is impaled on a valid target for us
+            if (otherHead.CurrentState == HeadState.Landed && otherHead.ImpaledOnSide.HasValue)
+            {
+                // The other head is impaled - check if it's on our valid target
+                bool isValidTarget = (_ownerPlayerIndex == 0 && otherHead.ImpaledOnSide == SpikeZone.TargetSide.Right) ||
+                                     (_ownerPlayerIndex == 1 && otherHead.ImpaledOnSide == SpikeZone.TargetSide.Left);
+
+                if (isValidTarget)
+                {
+                    // Stacking on valid target! Award points (same as outer zone for stacking)
+                    int stackPoints = 5; // Could make this configurable or add bonus
+                    ScoreAndImpale(stackPoints, otherHead.ImpaledOnSide.Value, "STACKED on head");
+                    return;
+                }
+                else
+                {
+                    // Hit opponent's impaled head - ignore collision, let head pass through
+                    // This prevents stacked heads from blocking opponent's throws
+                    Debug.Log($"Passed through opponent's impaled head on {otherHead.ImpaledOnSide} target.");
+                    Physics2D.IgnoreCollision(GetComponent<Collider2D>(), collision.collider);
+                    return;
+                }
+            }
+
+            // Other head is not impaled (on ground or still flying) = miss
+            Debug.Log("MISS! Hit a head that is NOT impaled on a target.");
+            EndTurnAsMiss();
+        }
+
+        private void ScoreAndImpale(int points, SpikeZone.TargetSide side, string description)
+        {
+            _landedZonePoints = points;
+            _currentState = HeadState.Landed;
+            _impaledOnSide = side;
+
+            // Stop the head (impaled)
+            _rb.linearVelocity = Vector2.zero;
+            _rb.angularVelocity = 0f;
+            _rb.bodyType = RigidbodyType2D.Kinematic; // Freeze in place
+
+            // Settle the head down onto the spike
+            transform.position = new Vector3(
+                transform.position.x,
+                transform.position.y - _impaleDepth,
+                transform.position.z
+            );
+
+            Debug.Log($"SCORED! {_landedZonePoints} points - {description} - HEAD IMPALED!");
+
+            OnHeadScored?.Invoke(this, _landedZonePoints);
+            EndTurn();
+        }
+
+        private void EndTurnAsMiss()
+        {
+            _currentState = HeadState.Missed;
             _landedZonePoints = 0;
+            EndTurn();
+        }
+
+        private void EndTurn()
+        {
+            if (_turnEnded)
+                return;
+
+            _turnEnded = true;
+            OnHeadLanded?.Invoke(this);
         }
 
         /// <summary>
@@ -179,8 +234,10 @@ namespace SHT.Gameplay
         {
             _currentState = HeadState.Idle;
             _landedZonePoints = 0;
-            _hasScored = false;
-            _settleTimer = 0f;
+            _turnEnded = false;
+            _ownerPlayerIndex = -1;
+            _impaledOnSide = null;
+            _rb.bodyType = RigidbodyType2D.Dynamic;
             _rb.linearVelocity = Vector2.zero;
             _rb.angularVelocity = 0f;
             transform.rotation = Quaternion.identity;

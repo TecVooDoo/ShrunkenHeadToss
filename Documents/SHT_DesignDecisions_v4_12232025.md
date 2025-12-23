@@ -1,8 +1,8 @@
 # Shrunken Head Toss - Design Decisions and Lessons Learned
 
-**Version:** 3
+**Version:** 4
 **Date Created:** December 19, 2025
-**Last Updated:** December 19, 2025
+**Last Updated:** December 23, 2025
 **Developer:** TecVooDoo LLC
 
 ---
@@ -18,6 +18,7 @@ This document captures design decisions, technical insights, and lessons learned
 | Version | Date | Summary |
 |---------|------|---------|
 | 1.0 | Dec 19, 2025 | Initial document, pre-development |
+| 4.0 | Dec 23, 2025 | Core gameplay implemented - scoring, player targeting, head stacking, pass-through mechanics |
 
 ---
 
@@ -249,13 +250,73 @@ These decisions are pending and will be resolved during development:
 | Date | Issue | Fix |
 |------|-------|-----|
 | Dec 19, 2025 | Head scored then rolled off, registering as miss | Check `_hasScored` flag before treating ground collision as miss |
-| Dec 19, 2025 | Turn doesn't switch if head rolls off ground edge | PENDING - Add timeout (e.g. 5 sec max) after toss to force turn end regardless of landing |
+| Dec 19, 2025 | Turn doesn't switch if head rolls off ground edge | RESOLVED - Simplified scoring rules (first collision determines outcome) |
+| Dec 23, 2025 | Player 2 always scoring even when missing | Added player index tracking and target validation per player |
+| Dec 23, 2025 | Heads stacking too high, blocking opponent throws | Flying heads now pass through opponent's impaled heads |
+| Dec 23, 2025 | Heads perching on spike tips instead of impaling | Added impaleDepth setting to settle heads down onto spikes |
+
+---
+
+## Implementation Status (Dec 23, 2025)
+
+### Completed
+
+**Core Scoring System:**
+- First collision determines outcome (simplified from timeout/settle logic)
+- Hit correct target = score and impale (head freezes in place)
+- Hit wrong target, ground, bounds, or flying head = miss, turn ends
+- HeadController states: Idle, Flying, Landed, Missed
+
+**Player Targeting:**
+- Player 1 (left side, index 0) targets SpikeBed_Right
+- Player 2 (right side, index 1) targets SpikeBed_Left
+- TossController passes playerIndex to HeadController on launch
+- SpikeZone has TargetSide enum (Left/Right) with IsValidTargetForPlayer() validation
+
+**Spike Bed Structure:**
+- Each spike bed has 11 individual spikes with their own colliders
+- Spike types: Edge (3 pts), Outer (5 pts), Inner (7 pts), Center (10 pts)
+- Colliders should cover just the tips for proper impalement feel
+- Edge spikes are tallest, Center is shortest
+
+**Head Stacking:**
+- Hitting a head impaled on YOUR valid target = score (5 pts for stacking)
+- Hitting opponent's impaled head = pass through (Physics2D.IgnoreCollision)
+- Hitting head on ground or flying head = miss
+
+**Impalement:**
+- Scored heads become Kinematic (frozen in place)
+- impaleDepth setting (default 0.3) moves head down after scoring
+- Heads track which side they're impaled on via ImpaledOnSide property
+
+**Out of Bounds:**
+- 4 trigger colliders on "Bounds" layer around screen edges
+- OnTriggerEnter2D detects bounds and ends turn as miss
+
+### Pending/Needs Adjustment
+
+**Collider Tuning:**
+- Spike colliders may need adjustment to cover only tips
+- Head size was reduced to allow better stacking on taller spikes
+- impaleDepth may need per-spike-type adjustment
+
+**Visual Polish:**
+- Heads stick at collision point, may look unnatural on some spikes
+- Consider adding slight position randomization for variety
+
+**Gameplay Balance:**
+- Stack points currently fixed at 5 (could vary)
+- Round/match flow works but needs UI feedback
 
 ---
 
 ## Playtest Feedback
 
-*No playtests yet - project not started*
+**Dec 23, 2025 - Initial Testing:**
+- Core loop works: toss, score/miss, switch turns
+- Pass-through mechanic prevents blocking issues
+- Spike collider size affects where heads can land
+- Taller edge spikes allow more stacking room
 
 ---
 

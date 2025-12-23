@@ -1,11 +1,11 @@
 # Shrunken Head Toss - Architecture Document
 
-**Version:** 3
+**Version:** 4
 **Date Created:** December 19, 2025
-**Last Updated:** December 19, 2025
+**Last Updated:** December 23, 2025
 **Developer:** TecVooDoo LLC
 **Unity Version:** 6.3 (6000.3.0f1)
-**Total Scripts:** 9 (Phase 1 in progress)
+**Total Scripts:** 9 (Core gameplay functional)
 
 ---
 
@@ -172,15 +172,27 @@ Assets/SHT/Scripts/
 **Purpose:** Individual head behavior after launch.
 
 **States:**
-- `Held` (before throw)
+- `Idle` (before throw)
 - `Flying` (in air)
-- `Landed` (on spike or ground)
-- `Stacked` (on another head)
+- `Landed` (scored and impaled on target)
+- `Missed` (hit wrong target/ground/bounds)
+
+**Key Properties:**
+- `_ownerPlayerIndex` - Which player threw this head (0 or 1)
+- `_impaledOnSide` - Which spike bed side this head is impaled on (Left/Right)
+- `_impaleDepth` - How far down the spike the head settles (default 0.3)
+- `_rotationSpeed` - Rotation while flying
+
+**Collision Logic:**
+- First collision while Flying determines outcome
+- Spikes layer: Check if valid target for player, score and impale if yes
+- Heads layer: If other head impaled on valid target = stack, opponent's head = pass through
+- Anything else (Ground, bounds) = miss
 
 **Physics:**
-- Rigidbody2D with custom drag
-- Rotation during flight
-- Collision callbacks for scoring
+- Rigidbody2D with custom gravity (20)
+- Rotation during flight based on velocity direction
+- Becomes Kinematic when impaled (frozen in place)
 
 ### SpikeBedManager
 
@@ -278,18 +290,48 @@ Don't instantiate/destroy - pool and reuse head objects.
 
 | Layer | Purpose |
 |-------|---------|
-| Default | UI, background |
+| Default | UI, background, SpikeBase visuals |
 | Heads | Shrunken head objects |
-| Spikes | Spike colliders |
+| Spikes | Individual spike colliders (with SpikeZone component) |
 | Ground | Miss zone |
+| Bounds | Out of bounds triggers (screen edges) |
 
 ### Collision Matrix
 
-| | Heads | Spikes | Ground |
-|---|---|---|---|
-| Heads | Yes (stacking) | Yes | Yes |
-| Spikes | Yes | No | No |
-| Ground | Yes | No | No |
+| | Heads | Spikes | Ground | Bounds |
+|---|---|---|---|---|
+| Heads | Yes (stacking/pass-through) | Yes | Yes | N/A (trigger) |
+| Spikes | Yes | No | No | No |
+| Ground | Yes | No | No | No |
+| Bounds | Trigger only | No | No | No |
+
+### SpikeZone Component
+
+Each spike has a `SpikeZone` component with:
+- `ZoneType` enum: Center (10 pts), Inner (7 pts), Outer (5 pts), Edge (3 pts)
+- `TargetSide` enum: Left (valid for Player 2) or Right (valid for Player 1)
+- `IsValidTargetForPlayer(int playerIndex)` - Returns true if this spike is valid target for given player
+
+### Scene Hierarchy
+
+```
+SpikeBed_Left (empty parent, TargetSide = Left)
+  - SpikeBase (visual only, Layer: Default)
+  - Spike_Edge (1) - PolygonCollider2D, SpikeZone (Edge, Left)
+  - Spike_Outer (1) - PolygonCollider2D, SpikeZone (Outer, Left)
+  - Spike_Inner (1) - PolygonCollider2D, SpikeZone (Inner, Left)
+  - Spike_Center - PolygonCollider2D, SpikeZone (Center, Left)
+  - ... (11 spikes total, mirrored)
+
+SpikeBed_Right (empty parent, TargetSide = Right)
+  - (same structure, all zones set to Right)
+
+Out_of_Bounds (trigger colliders)
+  - Out_of_Bounds_Top
+  - Out_of_Bounds_Bottom
+  - Out_of_Bounds_Left
+  - Out_of_Bounds_Right
+```
 
 ---
 
