@@ -28,8 +28,8 @@ namespace SHT.Gameplay
         [SerializeField]
         private float _rotationSpeed = 360f;
 
-        [SerializeField, Tooltip("How far down the spike the head settles when impaled")]
-        private float _impaleDepth = 0.3f;
+        [SerializeField, Tooltip("Fallback depth if spike has no base reference")]
+        private float _fallbackImpaleDepth = 0.3f;
 
         [Title("Debug")]
         [SerializeField, ReadOnly]
@@ -53,6 +53,7 @@ namespace SHT.Gameplay
         private Rigidbody2D _rb;
         private int _ownerPlayerIndex = -1;
         private SpikeZone.TargetSide? _impaledOnSide = null;
+        private SpikeZone _impaledOnSpike = null;
 
         private void Awake()
         {
@@ -92,17 +93,12 @@ namespace SHT.Gameplay
             string layerName = LayerMask.LayerToName(collision.gameObject.layer);
             Debug.Log($"Head collision with: {collision.gameObject.name} (Layer: {layerName})");
 
-            // Check if hit spikes (potential target)
-            if (collision.gameObject.layer == LayerMask.NameToLayer("Spikes"))
-            {
-                HandleSpikeCollision(collision);
-            }
             // Check if hit another head
-            else if (collision.gameObject.layer == LayerMask.NameToLayer("Heads"))
+            if (collision.gameObject.layer == LayerMask.NameToLayer("Heads"))
             {
                 HandleHeadCollision(collision);
             }
-            // Hit anything else = miss, turn ends immediately
+            // Hit anything else (ground, spike base, etc) = miss, turn ends immediately
             else
             {
                 Debug.Log($"MISS! Hit {layerName} before target.");
@@ -116,23 +112,30 @@ namespace SHT.Gameplay
             if (_currentState != HeadState.Flying)
                 return;
 
+            string layerName = LayerMask.LayerToName(other.gameObject.layer);
+            Debug.Log($"Head trigger with: {other.gameObject.name} (Layer: {layerName})");
+
+            // Check if hit spike tip (trigger on Spikes layer)
+            if (other.gameObject.layer == LayerMask.NameToLayer("Spikes"))
+            {
+                HandleSpikeTrigger(other);
+            }
             // Out of bounds = miss
-            if (other.gameObject.layer == LayerMask.NameToLayer("Bounds"))
+            else if (other.gameObject.layer == LayerMask.NameToLayer("Bounds"))
             {
                 Debug.Log("MISS! Head went OUT OF BOUNDS!");
                 EndTurnAsMiss();
             }
         }
 
-        private void HandleSpikeCollision(Collision2D collision)
+        private void HandleSpikeTrigger(Collider2D other)
         {
-            var spikeZone = collision.gameObject.GetComponent<SpikeZone>();
+            var spikeZone = other.GetComponent<SpikeZone>();
 
             if (spikeZone == null)
             {
-                Debug.LogWarning("Hit Spikes layer but no SpikeZone component found!");
-                EndTurnAsMiss();
-                return;
+                Debug.LogWarning("Hit Spikes layer trigger but no SpikeZone component found!");
+                return; // Don't end turn - let head continue to base collider
             }
 
             // Check if this is the correct target for this player
@@ -143,8 +146,15 @@ namespace SHT.Gameplay
                 return;
             }
 
+            // Check if spike has room for another head
+            if (!spikeZone.HasRoom())
+            {
+                Debug.Log($"Spike {spikeZone.name} is FULL! Head passes through.");
+                return; // Don't score, let head continue falling
+            }
+
             // SCORED! Head impales on target
-            ScoreAndImpale(spikeZone.PointValue, spikeZone.Side, spikeZone.Type.ToString());
+            ScoreAndImpale(spikeZone.PointValue, spikeZone.Side, spikeZone.Type.ToString(), spikeZone);
         }
 
         private void HandleHeadCollision(Collision2D collision)
@@ -167,10 +177,19 @@ namespace SHT.Gameplay
 
                 if (isValidTarget)
                 {
-                    // Stacking on valid target! Award points (same as outer zone for stacking)
-                    int stackPoints = 5; // Could make this configurable or add bonus
-                    ScoreAndImpale(stackPoints, otherHead.ImpaledOnSide.Value, "STACKED on head");
-                    return;
+                    // Stacking on valid target! Use the same spike zone as the other head
+                    if (otherHead._impaledOnSpike != null && otherHead._impaledOnSpike.HasRoom())
+                    {
+                        int stackPoints = 5; // Could make this configurable or add bonus
+                        ScoreAndImpale(stackPoints, otherHead.ImpaledOnSide.Value, "STACKED on head", otherHead._impaledOnSpike);
+                        return;
+                    }
+                    else
+                    {
+                        // Spike is full, let head continue
+                        Debug.Log("Spike is full, cannot stack.");
+                        return;
+                    }
                 }
                 else
                 {
@@ -187,25 +206,47 @@ namespace SHT.Gameplay
             EndTurnAsMiss();
         }
 
-        private void ScoreAndImpale(int points, SpikeZone.TargetSide side, string description)
+        private void ScoreAndImpale(int points, SpikeZone.TargetSide side, string description, SpikeZone spikeZone)
         {
             _landedZonePoints = points;
             _currentState = HeadState.Landed;
             _impaledOnSide = side;
+            _impaledOnSpike = spikeZone;
 
             // Stop the head (impaled)
             _rb.linearVelocity = Vector2.zero;
             _rb.angularVelocity = 0f;
             _rb.bodyType = RigidbodyType2D.Kinematic; // Freeze in place
 
-            // Settle the head down onto the spike
-            transform.position = new Vector3(
-                transform.position.x,
-                transform.position.y - _impaleDepth,
-                transform.position.z
-            );
+            // Parent head to the spike tip and set local position
+            if (spikeZone != null)
+            {
+                // Get local position BEFORE registering (so count is correct)
+                Vector3 localPos = spikeZone.GetLocalImpalePosition();
 
-            Debug.Log($"SCORED! {_landedZonePoints} points - {description} - HEAD IMPALED!");
+                // Store world scale before parenting (spike tips have non-uniform scale)
+                Vector3 originalWorldScale = transform.lossyScale;
+
+                // Parent to spike
+                transform.SetParent(spikeZone.GetSpikeTransform());
+
+                // Restore world scale by calculating compensated local scale
+                Vector3 parentScale = spikeZone.GetSpikeTransform().lossyScale;
+                transform.localScale = new Vector3(
+                    originalWorldScale.x / parentScale.x,
+                    originalWorldScale.y / parentScale.y,
+                    originalWorldScale.z / parentScale.z
+                );
+
+                // Set local position (keep current world rotation for variety)
+                transform.localPosition = localPos;
+                // Don't reset rotation - preserve the random rotation from flight
+
+                // Register with spike zone for tracking
+                spikeZone.RegisterImpaledHead(this);
+
+                Debug.Log($"SCORED! {_landedZonePoints} points - {description} - HEAD IMPALED at local {localPos}!");
+            }
 
             OnHeadScored?.Invoke(this, _landedZonePoints);
             EndTurn();
@@ -232,6 +273,16 @@ namespace SHT.Gameplay
         /// </summary>
         public void Reset()
         {
+            // Unregister from spike zone if impaled
+            if (_impaledOnSpike != null)
+            {
+                _impaledOnSpike.UnregisterImpaledHead(this);
+                _impaledOnSpike = null;
+            }
+
+            // Unparent from spike (important for pooling/reuse)
+            transform.SetParent(null);
+
             _currentState = HeadState.Idle;
             _landedZonePoints = 0;
             _turnEnded = false;

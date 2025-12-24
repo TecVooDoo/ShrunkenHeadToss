@@ -5,8 +5,8 @@
 **Designer:** Rune (Stephen Brandon)
 **Unity Version:** 6.3 (6000.3.0f1)
 **Project Path:** E:\Unity\ShrunkenHeadToss
-**Document Version:** 4
-**Last Updated:** December 23, 2025
+**Document Version:** 3
+**Last Updated:** December 19, 2025
 
 ---
 
@@ -217,18 +217,14 @@ Old files moved to Documents/Archive/
 
 ## Development Status
 
-### Phase 1: Core Mechanics - DONE
+### Phase 1: Core Mechanics - TODO
 
 | Item | Status |
 |------|--------|
-| Physics-based head tossing | DONE |
-| Spike bed target system | DONE |
-| Basic scoring | DONE |
-| Two-player local gameplay | DONE |
-| Player targeting (P1->Right, P2->Left) | DONE |
-| Head stacking mechanics | DONE |
-| Pass-through for opponent heads | DONE |
-| Out of bounds detection | DONE |
+| Physics-based head tossing | TODO |
+| Spike bed target system | TODO |
+| Basic scoring | TODO |
+| Two-player local gameplay | TODO |
 
 ### Phase 2: Polish - TODO
 
@@ -237,7 +233,7 @@ Old files moved to Documents/Archive/
 | Sound effects | TODO |
 | Visual feedback (impacts, bounces) | TODO |
 | Score UI | TODO |
-| Collider tuning (spike tips) | TODO |
+| Round/match system | TODO |
 
 ### Phase 3: Features - TODO
 
@@ -247,8 +243,6 @@ Old files moved to Documents/Archive/
 | Head variety/unlockables | TODO |
 | Multiple arenas | TODO |
 | Online multiplayer | TODO |
-
-**v4 Note:** See Design Decisions doc for detailed implementation status and pending adjustments.
 
 ---
 
